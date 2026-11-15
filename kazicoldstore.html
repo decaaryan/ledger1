@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0b1014">
+  <title>Kazi Cold Store | Ledger</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17211d;
+      --muted: #78827d;
+      --line: #e8ece9;
+      --canvas: #f5f7f5;
+      --white: #fff;
+      --green: #237b58;
+      --green-dark: #185b40;
+      --green-soft: #eaf5ef;
+      --red: #c94d4d;
+      --red-soft: #fff0ef;
+      --amber: #ab7624;
+      --shadow: 0 8px 26px rgba(27, 49, 37, .045);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 320px; background: var(--canvas); color: var(--ink); }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    .app { display: flex; min-height: 100vh; }
+    .sidebar {
+      position: fixed; inset: 0 auto 0 0; z-index: 3; display: flex; width: 238px;
+      flex-direction: column; padding: 27px 17px 18px; background: #fff;
+      border-right: 1px solid var(--line);
+    }
+    .brand { display: flex; align-items: center; gap: 11px; padding: 0 8px 31px; }
+    .brand-mark {
+      display: grid; width: 42px; height: 42px; flex: 0 0 42px; place-items: center;
+      overflow: hidden; border-radius: 12px; background: var(--green-soft); color: var(--green);
+    }
+    .brand-mark img { width: 100%; height: 100%; object-fit: cover; }
+    .brand-mark .fallback { font-size: 19px; font-weight: 800; }
+    .brand-name { font-size: 14px; font-weight: 750; letter-spacing: -.3px; }
+    .brand-subtitle { margin-top: 3px; color: var(--muted); font-size: 11px; }
+    .nav-label { padding: 0 11px 9px; color: #a0a9a4; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+    .nav { display: grid; gap: 5px; }
+    .nav button {
+      display: flex; align-items: center; gap: 12px; padding: 11px 12px; border: 0;
+      border-radius: 9px; background: transparent; color: #65716b; text-align: left;
+      font-size: 13px; font-weight: 600; transition: background .15s, color .15s;
+    }
+    .nav button:hover { background: #f5f8f6; color: var(--green-dark); }
+    .nav button.active { background: var(--green-soft); color: var(--green-dark); }
+    .nav-icon { display: grid; width: 18px; height: 18px; place-items: center; font-size: 16px; }
+    .sidebar-bottom { margin-top: auto; padding: 15px 10px 0; border-top: 1px solid var(--line); }
+    .local-note { color: var(--muted); font-size: 11px; line-height: 1.65; }
+    .local-note strong { color: #4c5a53; font-weight: 650; }
+    .main { width: calc(100% - 238px); max-width: 1500px; margin-left: 238px; padding: 30px 38px 48px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 27px; }
+    .eyebrow { margin-bottom: 5px; color: var(--muted); font-size: 11px; font-weight: 650; }
+    h1 { margin: 0; font-size: 24px; font-weight: 720; letter-spacing: -.8px; }
+    .top-actions { display: flex; flex-wrap: wrap; gap: 9px; }
+    .button {
+      display: inline-flex; min-height: 39px; align-items: center; justify-content: center; gap: 8px;
+      padding: 0 14px; border: 1px solid var(--line); border-radius: 8px;
+      background: var(--white); color: #46534c; font-size: 12px; font-weight: 650;
+      transition: transform .12s, background .15s, border-color .15s;
+    }
+    .button:hover { border-color: #cbd8d0; background: #fbfdfb; }
+    .button:active { transform: translateY(1px); }
+    .button.primary { border-color: var(--green); background: var(--green); color: #fff; }
+    .button.primary:hover { border-color: var(--green-dark); background: var(--green-dark); }
+    .button.subtle { border-color: transparent; background: transparent; color: var(--muted); }
+    .button.small { min-height: 31px; padding: 0 10px; font-size: 11px; }
+    .button.danger { color: var(--red); }
+    .icon-button { display: grid; width: 32px; height: 32px; place-items: center; border: 0; border-radius: 7px; background: transparent; color: #849089; font-size: 17px; }
+    .icon-button:hover { background: #f2f5f3; color: var(--ink); }
+    .notice { display: none; margin-bottom: 18px; padding: 11px 14px; border: 1px solid #f1d8a9; border-radius: 8px; background: #fff9eb; color: #79551d; font-size: 12px; line-height: 1.5; }
+    .notice.show { display: block; }
+    .page { display: none; }
+    .page.active { display: block; }
+    .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 27px 0 14px; }
+    .section-heading h2 { margin: 0; font-size: 14px; font-weight: 700; letter-spacing: -.2px; }
+    .section-heading p { margin: 4px 0 0; color: var(--muted); font-size: 11px; }
+    .cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 13px; }
+    .card, .panel { border: 1px solid var(--line); border-radius: 11px; background: #fff; box-shadow: var(--shadow); }
+    .metric { min-height: 130px; padding: 17px 17px 14px; }
+    .metric-top { display: flex; align-items: center; justify-content: space-between; color: var(--muted); font-size: 11px; font-weight: 600; }
+    .metric-icon { display: grid; width: 28px; height: 28px; place-items: center; border-radius: 8px; background: #f2f7f4; color: var(--green); font-size: 14px; }
+    .metric-value { margin-top: 14px; font-size: 23px; font-weight: 730; letter-spacing: -.8px; }
+    .metric-foot { margin-top: 5px; color: #8a948e; font-size: 10px; }
+    .metric-foot.positive { color: var(--green); }
+    .metric-foot.negative { color: var(--red); }
+    .dashboard-grid { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(260px, 1fr); gap: 14px; margin-top: 15px; }
+    .panel { overflow: hidden; }
+    .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; border-bottom: 1px solid var(--line); }
+    .panel-title { font-size: 12px; font-weight: 700; }
+    .panel-caption { margin-top: 4px; color: var(--muted); font-size: 10px; }
+    .goal-panel { padding: 18px; }
+    .goal-line { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 9px 0 11px; }
+    .goal-current { font-size: 21px; font-weight: 730; letter-spacing: -.5px; }
+    .goal-target { color: var(--muted); font-size: 11px; }
+    .progress { height: 8px; overflow: hidden; border-radius: 99px; background: #edf1ee; }
+    .progress > span { display: block; width: 0; height: 100%; border-radius: inherit; background: var(--green); transition: width .3s ease; }
+    .goal-foot { display: flex; justify-content: space-between; margin-top: 9px; color: var(--muted); font-size: 10px; }
+    .goal-edit { display: flex; gap: 7px; margin-top: 17px; }
+    .goal-edit input { min-width: 0; flex: 1; }
+    .empty { padding: 30px 15px; color: #8a948e; text-align: center; font-size: 11px; }
+    .table-wrap { width: 100%; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; white-space: nowrap; }
+    th { padding: 10px 15px; background: #fbfcfb; color: #8a948e; text-align: left; font-size: 9px; font-weight: 700; letter-spacing: .45px; text-transform: uppercase; }
+    td { padding: 12px 15px; border-top: 1px solid #f0f2f0; color: #46534c; font-size: 11px; }
+    td strong { color: var(--ink); font-weight: 650; }
+    .table-empty { padding: 28px 15px; color: var(--muted); text-align: center; font-size: 11px; }
+    .badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 7px; border-radius: 99px; background: #f2f5f3; color: #627068; font-size: 9px; font-weight: 650; }
+    .badge.cash { background: #eef4fa; color: #54708d; }
+    .badge.fonepay { background: var(--green-soft); color: var(--green-dark); }
+    .stock-low { color: var(--amber); }
+    .profit { color: var(--green); }
+    .loss { color: var(--red); }
+    .toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 11px; margin-bottom: 14px; }
+    .toolbar input[type="search"] { width: min(280px, 100%); }
+    .toolbar-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    input, select {
+      width: 100%; min-height: 38px; padding: 8px 10px; border: 1px solid #dfe5e1;
+      border-radius: 7px; outline: 0; background: #fff; color: var(--ink); font-size: 12px;
+    }
+    input:focus, select:focus { border-color: #79b596; box-shadow: 0 0 0 3px rgba(35, 123, 88, .1); }
+    input::placeholder { color: #a5ada8; }
+    .field { display: grid; gap: 6px; }
+    .field label { color: #58655e; font-size: 11px; font-weight: 650; }
+    .field small { color: var(--muted); font-size: 10px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+    .form-grid .wide { grid-column: 1 / -1; }
+    .modal-backdrop { position: fixed; inset: 0; z-index: 5; display: none; align-items: center; justify-content: center; padding: 18px; background: rgba(15, 27, 20, .42); }
+    .modal-backdrop.open { display: flex; }
+    .modal { width: min(100%, 470px); max-height: min(90vh, 720px); overflow-y: auto; border: 1px solid rgba(255,255,255,.5); border-radius: 13px; background: #fff; box-shadow: 0 22px 70px rgba(15, 27, 20, .2); }
+    .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 17px 20px; border-bottom: 1px solid var(--line); }
+    .modal-head h2 { margin: 0; font-size: 15px; letter-spacing: -.2px; }
+    .modal-body { display: grid; gap: 14px; padding: 19px 20px 20px; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; padding-top: 3px; }
+    .sale-preview { padding: 11px 12px; border-radius: 8px; background: #f5f8f6; color: #59665f; font-size: 11px; line-height: 1.7; }
+    .qr-area { display: grid; min-height: 240px; place-items: center; padding: 16px; border-radius: 9px; background: #f7f9f7; }
+    .qr-area img { display: block; max-width: min(100%, 320px); max-height: 55vh; object-fit: contain; }
+    .qr-placeholder { color: var(--muted); text-align: center; font-size: 12px; line-height: 1.7; }
+    .toast { position: fixed; right: 24px; bottom: 22px; z-index: 7; max-width: calc(100vw - 32px); padding: 12px 16px; transform: translateY(15px); border-radius: 8px; background: #1d3328; color: #fff; opacity: 0; pointer-events: none; font-size: 12px; transition: opacity .2s, transform .2s; }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .mobile-brand { display: none; }
+    @media (max-width: 1050px) {
+      .main { padding-right: 25px; padding-left: 25px; }
+      .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 760px) {
+      .sidebar { inset: auto 0 0; width: 100%; height: 64px; flex-direction: row; justify-content: center; padding: 6px 10px; border-top: 1px solid var(--line); border-right: 0; }
+      .brand, .nav-label, .sidebar-bottom { display: none; }
+      .nav { width: min(100%, 420px); grid-template-columns: repeat(3, 1fr); gap: 4px; }
+      .nav button { flex-direction: column; justify-content: center; gap: 2px; padding: 5px 3px; font-size: 9px; }
+      .nav-icon { height: 19px; font-size: 15px; }
+      .main { width: 100%; margin-left: 0; padding: 23px 17px 88px; }
+      .topbar { align-items: flex-start; margin-bottom: 21px; }
+      h1 { font-size: 21px; }
+      .top-actions { gap: 6px; }
+      .top-actions .button { min-height: 35px; padding: 0 9px; font-size: 10px; }
+      .dashboard-grid { grid-template-columns: 1fr; }
+      .metric { min-height: 119px; padding: 14px; }
+      .metric-value { font-size: 20px; }
+      .section-heading { margin-top: 23px; }
+    }
+    @media (max-width: 390px) {
+      .cards { gap: 9px; }
+      .metric-value { font-size: 18px; }
+      .metric-top { font-size: 10px; }
+      .form-grid { grid-template-columns: 1fr; }
+      .form-grid .wide { grid-column: auto; }
+    }
+    [hidden] { display: none !important; }
+    :root {
+      color-scheme: dark;
+      --ink: #edf4f1;
+      --muted: #9aa8a2;
+      --line: #26333b;
+      --canvas: #0b1014;
+      --white: #141c22;
+      --green: #65d6a8;
+      --green-dark: #29956a;
+      --green-soft: #172b26;
+      --red: #ff827b;
+      --red-soft: #321f21;
+      --amber: #f0bf68;
+      --shadow: 0 10px 28px rgba(0, 0, 0, .13);
+    }
+    html, body { background: var(--canvas); color: var(--ink); }
+    body { min-height: 100vh; }
+    .sidebar { background: #10171d; border-color: var(--line); }
+    .brand-mark { background: #1a2928; }
+    .brand-mark img { object-fit: contain; }
+    .brand-subtitle, .local-note, .panel-caption, .eyebrow, .section-heading p { color: var(--muted); }
+    .nav-label { color: #788780; }
+    .nav button { color: #a9b5b0; }
+    .nav button:hover, .nav button.active { background: #1a2a27; color: var(--green); }
+    .sidebar-bottom { border-color: var(--line); }
+    .local-note strong { color: #d7e1dc; }
+    .card, .panel { background: #121a20; border-color: var(--line); box-shadow: var(--shadow); }
+    .metric-top, .goal-target { color: var(--muted); }
+    .metric-icon { background: #1b2b28; color: var(--green); }
+    .metric-foot { color: #9aa8a2; }
+    .metric-foot.positive, .profit { color: var(--green); }
+    .metric-foot.negative, .loss { color: var(--red); }
+    .progress { background: #29353b; }
+    .progress > span { background: var(--green); }
+    .button { border-color: #33414a; background: #182127; color: #dce5e1; }
+    .button:hover { border-color: #52635f; background: #202c32; }
+    .button.primary { border-color: #29956a; background: #21865e; color: #f3fff9; }
+    .button.primary:hover { border-color: #41b581; background: #29956a; }
+    .button.subtle { background: transparent; color: var(--muted); }
+    .button:disabled { cursor: not-allowed; opacity: .48; }
+    .icon-button { color: #a6b2ad; }
+    .icon-button:hover { background: #243139; color: var(--ink); }
+    input, select { border-color: #34424b; background: #0e151a; color: var(--ink); }
+    input:focus, select:focus { border-color: #4aa77e; box-shadow: 0 0 0 3px rgba(101, 214, 168, .12); }
+    input::placeholder { color: #718079; }
+    .field label { color: #c4cfca; }
+    .field small { color: var(--muted); }
+    .panel-head, th { border-color: var(--line); }
+    th { background: #151e24; color: #9ba9a3; }
+    td { border-color: #222e35; color: #c0cbc6; }
+    td strong { color: var(--ink); }
+    .table-empty, .empty { color: var(--muted); }
+    .badge { background: #263239; color: #c7d2cd; }
+    .badge.cash { background: #1c2a38; color: #a9c8ea; }
+    .badge.fonepay { background: #193329; color: #7de1b5; }
+    .stock-low { color: var(--amber); }
+    .modal-backdrop { background: rgba(3, 7, 9, .76); }
+    .modal { border-color: #304047; background: #141d23; box-shadow: 0 22px 70px rgba(0, 0, 0, .55); }
+    .modal-head { border-color: var(--line); }
+    .sale-preview { background: #1a2828; color: #c2d2ca; }
+    .qr-area { background: #0c1318; }
+    .qr-placeholder { color: var(--muted); }
+    .notice { border-color: #5a492b; background: #2a2419; color: #f0cf91; }
+    .toast { background: #21362e; color: #effcf5; }
+    .summary-details { overflow: hidden; }
+    .summary-details > summary {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      padding: 17px 18px; color: var(--ink); cursor: pointer; font-size: 12px; font-weight: 700;
+      list-style: none;
+    }
+    .summary-details > summary::-webkit-details-marker { display: none; }
+    .summary-details > summary::after { content: "+"; color: var(--green); font-size: 17px; font-weight: 400; }
+    .summary-details[open] > summary::after { content: "−"; }
+    .summary-hint { margin-left: auto; color: var(--muted); font-size: 10px; font-weight: 400; }
+    .summary-details .goal-panel { padding-top: 0; }
+    .inventory-summary, .transaction-summary {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px;
+      margin-bottom: 15px; padding: 13px 16px; border: 1px solid var(--line);
+      border-radius: 10px; background: #121a20; color: var(--muted); font-size: 11px;
+    }
+    .inventory-summary strong, .transaction-summary strong { color: var(--ink); font-size: 12px; font-weight: 700; }
+    .inventory-summary .low-stock-summary strong { color: var(--amber); }
+    .mobile-meta { display: none; color: var(--muted); font-size: 10px; font-weight: 400; line-height: 1.5; }
+    .header-left { display: flex; align-items: center; }
+    .page-heading { min-width: 0; }
+
+    @media (max-width: 760px) {
+      .sidebar {
+        inset: auto 0 0; width: 100%; height: calc(68px + env(safe-area-inset-bottom));
+        flex-direction: row; justify-content: center; padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+        border-top: 1px solid var(--line); border-right: 0; background: rgba(16, 23, 29, .97);
+        backdrop-filter: blur(16px);
+      }
+      .brand, .nav-label, .sidebar-bottom { display: none; }
+      .nav { width: min(100%, 480px); grid-template-columns: repeat(4, 1fr); gap: 4px; }
+      .nav button {
+        min-height: 48px; flex-direction: column; justify-content: center; gap: 3px;
+        padding: 4px 2px; border-radius: 9px; color: #9ba9a3; font-size: 10px;
+      }
+      .nav button.active { background: #1b2d28; color: var(--green); }
+      .nav-icon { width: 22px; height: 20px; font-size: 17px; }
+      .main { width: 100%; max-width: none; margin: 0; padding: 14px 14px calc(88px + env(safe-area-inset-bottom)); }
+      .topbar {
+        position: sticky; top: 0; z-index: 2; align-items: center; gap: 8px;
+        margin: -14px -14px 16px; padding: 11px 14px;
+        border-bottom: 1px solid rgba(38, 51, 59, .8); background: rgba(11, 16, 20, .96);
+        backdrop-filter: blur(14px);
+      }
+      .header-left { min-width: 0; }
+      .mobile-brand { display: flex; align-items: center; gap: 9px; color: var(--ink); font-size: 14px; font-weight: 700; white-space: nowrap; }
+      .mobile-brand img { width: 32px; height: 32px; border-radius: 9px; object-fit: contain; background: #1a2928; }
+      .page-heading { display: none; }
+      .top-actions .button.primary { width: 42px; min-height: 42px; padding: 0; border-radius: 12px; font-size: 18px; }
+      .sale-button-label { display: none; }
+      .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+      .metric { min-height: 105px; padding: 12px; border-radius: 11px; }
+      .metric-top { gap: 5px; font-size: 10px; }
+      .metric-icon { width: 24px; height: 24px; flex: 0 0 24px; font-size: 12px; }
+      .metric-value { margin-top: 12px; font-size: clamp(16px, 5vw, 21px); letter-spacing: -.5px; }
+      .metric-foot { font-size: 9px; line-height: 1.35; }
+      .dashboard-grid { grid-template-columns: 1fr; gap: 10px; margin-top: 11px; }
+      .panel-head { padding: 14px; }
+      .goal-panel { padding: 14px; }
+      .goal-line { margin: 8px 0 10px; font-size: 11px; }
+      .goal-current { font-size: 19px; }
+      .goal-foot { font-size: 10px; }
+      .goal-edit { flex-wrap: wrap; }
+      .goal-edit input { flex-basis: 100%; }
+      .summary-details > summary { padding: 14px; }
+      .summary-hint { font-size: 9px; }
+      .section-heading { margin: 21px 0 11px; }
+      .section-heading h2 { font-size: 13px; }
+      .section-heading p { font-size: 10px; }
+      .toolbar { display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 11px; }
+      .toolbar input[type="search"] { width: 100%; }
+      .toolbar-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+      .toolbar-actions .button, .toolbar-actions select { min-width: 0 !important; min-height: 42px; }
+      .inventory-summary, .transaction-summary { gap: 8px 15px; margin-bottom: 11px; padding: 11px 12px; font-size: 10px; }
+      .inventory-summary strong, .transaction-summary strong { font-size: 11px; }
+      .table-wrap { overflow: visible; }
+      table { display: block; width: 100%; white-space: normal; }
+      thead { display: none; }
+      tbody { display: grid; gap: 8px; }
+      tbody tr {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px;
+        padding: 11px 12px; border: 1px solid var(--line); border-radius: 9px; background: #10181e;
+      }
+      td { display: flex; min-width: 0; align-items: baseline; justify-content: space-between; gap: 8px; padding: 5px 0; border: 0; font-size: 10px; white-space: normal; }
+      td::before { content: attr(data-label); color: var(--muted); font-size: 9px; }
+      td strong { overflow-wrap: anywhere; }
+      .table-empty { display: block; grid-column: 1 / -1; padding: 12px 0; text-align: center; }
+      #recent-body tr { grid-template-columns: 1fr 1fr; }
+      #recent-body td:nth-child(2) { grid-column: 1 / -1; grid-row: 1; justify-content: flex-start; }
+      #recent-body td:nth-child(2)::before { content: none; }
+      #recent-body td:nth-child(1), #recent-body td:nth-child(3), #recent-body td:nth-child(4) { grid-row: 2; }
+      #inventory-body tr { grid-template-columns: 1fr auto; align-items: center; }
+      #inventory-body td:nth-child(1), #inventory-body td:nth-child(4), #inventory-body td:nth-child(5), #inventory-body td:nth-child(6) { display: none; }
+      #inventory-body td:nth-child(2) { display: block; grid-column: 1; grid-row: 1; padding: 3px 0; }
+      #inventory-body td:nth-child(2)::before { content: none; }
+      #inventory-body td:nth-child(3) { grid-column: 1; grid-row: 2; justify-content: flex-start; }
+      #inventory-body td:nth-child(7) { grid-column: 2; grid-row: 1 / span 2; }
+      #inventory-body td:nth-child(7)::before { content: none; }
+      #inventory-body .mobile-meta { display: block; }
+      #transactions-body tr { grid-template-columns: 1fr 1fr; }
+      #transactions-body td:nth-child(1), #transactions-body td:nth-child(3), #transactions-body td:nth-child(6), #transactions-body td:nth-child(9) { display: none; }
+      .button.small { min-height: 34px; }
+      .modal-backdrop { align-items: flex-end; padding: 8px; }
+      .modal { width: 100%; max-height: min(88vh, 720px); border-radius: 17px; }
+      .modal-head { padding: 15px 16px; }
+      .modal-body { gap: 12px; padding: 15px 16px 18px; }
+      .modal-actions .button { min-height: 42px; }
+      .toast { right: 12px; bottom: calc(78px + env(safe-area-inset-bottom)); left: 12px; max-width: none; text-align: center; }
+    }
+    @media (max-width: 380px) {
+      .main { padding-right: 11px; padding-left: 11px; }
+      .topbar { flex-direction: row; margin-right: -11px; margin-left: -11px; padding-right: 11px; padding-left: 11px; }
+      .metric { padding: 10px; }
+      .metric-top { font-size: 9px; }
+      .toolbar-actions { grid-template-columns: 1fr; }
+      .summary-hint { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark"><img src="logo.jpeg" alt="Kazi Cold Store logo" id="store-logo"></div>
+        <div><div class="brand-name">Kazi Cold Store</div><div class="brand-subtitle">Store ledger</div></div>
+      </div>
+      <div class="nav-label">Workspace</div>
+      <nav class="nav" aria-label="Main navigation">
+        <button class="active" data-page="dashboard"><span class="nav-icon">▦</span>Dashboard</button>
+        <button data-page="inventory"><span class="nav-icon">▤</span>Inventory</button>
+        <button data-page="transactions"><span class="nav-icon">↗</span>Transactions</button>
+        <button type="button" id="qr-open"><span class="nav-icon">▧</span>Store QR</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="local-note"><strong>Saved on this device</strong><br>Ledger data stays in this browser. Export a backup regularly.</div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="header-left">
+          <div class="mobile-brand"><img src="logo.jpeg" alt="" id="mobile-store-logo"><span>Kazi Cold Store</span></div>
+          <div class="page-heading"><div class="eyebrow" id="date-label"></div><h1 id="page-title">Dashboard</h1></div>
+        </div>
+        <div class="top-actions">
+          <button class="button primary" type="button" id="new-sale" aria-label="Record sale"><span aria-hidden="true">＋</span><span class="sale-button-label">Record sale</span></button>
+        </div>
+      </header>
+      <div class="notice" id="notice" role="status"></div>
+
+      <section class="page active" id="page-dashboard" aria-label="Dashboard">
+        <div class="cards">
+          <article class="card metric">
+            <div class="metric-top">Inventory value <span class="metric-icon">▤</span></div>
+            <div class="metric-value" id="metric-inventory">Rs 0</div>
+            <div class="metric-foot">Cost value of stock on hand</div>
+          </article>
+          <article class="card metric">
+            <div class="metric-top">Sales this month <span class="metric-icon">↗</span></div>
+            <div class="metric-value" id="metric-sales">Rs 0</div>
+            <div class="metric-foot" id="metric-sales-foot">0 transactions this month</div>
+          </article>
+          <article class="card metric">
+            <div class="metric-top">Net profit <span class="metric-icon">⌁</span></div>
+            <div class="metric-value" id="metric-profit">Rs 0</div>
+            <div class="metric-foot" id="metric-profit-foot">Profit after cost of goods sold</div>
+          </article>
+          <article class="card metric">
+            <div class="metric-top">Items in stock <span class="metric-icon">◫</span></div>
+            <div class="metric-value" id="metric-stock">0</div>
+            <div class="metric-foot" id="metric-products-foot">Across 0 products</div>
+          </article>
+        </div>
+
+        <div class="dashboard-grid">
+          <section class="panel">
+            <div class="panel-head">
+              <div><div class="panel-title">Monthly sales goal</div><div class="panel-caption" id="goal-month-label"></div></div>
+              <button class="button small" type="button" id="goal-edit-toggle">Set goal</button>
+            </div>
+            <div class="goal-panel">
+              <div class="goal-line"><span class="goal-current" id="goal-current">Rs 0</span><span class="goal-target" id="goal-target">of Rs 0</span></div>
+              <div class="progress" role="progressbar" aria-label="Monthly sales goal progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="goal-progress"></span></div>
+              <div class="goal-foot"><span id="goal-percent">0% of goal</span><span id="goal-remaining">Set a monthly target</span></div>
+              <form class="goal-edit" id="goal-form" hidden>
+                <input type="number" id="goal-input" min="0" step="0.01" placeholder="Monthly sales goal (Rs)" aria-label="Monthly sales goal">
+                <button class="button primary small" type="submit">Save</button>
+                <button class="button small" type="button" id="goal-cancel">Cancel</button>
+              </form>
+            </div>
+          </section>
+          <details class="panel summary-details">
+            <summary><span>More this month</span><span class="summary-hint">Payments and profit details</span></summary>
+            <div class="goal-panel">
+              <div class="goal-line"><span class="panel-title">Total units sold this month</span><strong id="month-units">0</strong></div>
+              <div class="goal-line"><span class="panel-title">Cash sales this month</span><strong id="month-cash">Rs 0</strong></div>
+              <div class="goal-line"><span class="panel-title">Fonepay sales this month</span><strong id="month-fonepay">Rs 0</strong></div>
+              <div class="goal-line"><span class="panel-title">Gross profit this month</span><strong id="month-gross-profit">Rs 0</strong></div>
+              <div class="goal-line"><span class="panel-title">Losses this month</span><strong id="month-loss">Rs 0</strong></div>
+            </div>
+          </details>
+        </div>
+
+        <div class="section-heading"><div><h2>Recent sales</h2><p>Your latest recorded sales</p></div><button class="button small" type="button" data-go="transactions">View all</button></div>
+        <section class="panel"><div class="table-wrap"><table>
+          <thead><tr><th>Date</th><th>Product</th><th>Payment</th><th>Total</th></tr></thead>
+          <tbody id="recent-body"></tbody>
+        </table></div></section>
+      </section>
+
+      <section class="page" id="page-inventory" aria-label="Inventory">
+        <div class="toolbar">
+          <input type="search" id="inventory-search" placeholder="Search products or ID" aria-label="Search inventory">
+          <div class="toolbar-actions">
+            <button class="button" type="button" id="inventory-export">Export Excel</button>
+            <button class="button primary" type="button" id="add-stock"><span aria-hidden="true">＋</span> Add product</button>
+          </div>
+        </div>
+        <div class="inventory-summary">
+          <span><strong id="inventory-count">0</strong> products</span>
+          <span><strong id="inventory-units">0</strong> units in stock</span>
+          <span>Stock worth <strong id="inventory-total">Rs 0</strong></span>
+          <span class="low-stock-summary">Low stock <strong id="inventory-low">0</strong></span>
+        </div>
+        <section class="panel">
+          <div class="panel-head"><div><div class="panel-title">Products</div><div class="panel-caption">Tap an action to restock or record a sale</div></div></div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Product ID</th><th>Product</th><th>In stock</th><th>Cost / unit</th><th>Sell / unit</th><th>Stock worth</th><th>Action</th></tr></thead>
+            <tbody id="inventory-body"></tbody>
+          </table></div>
+        </section>
+      </section>
+
+      <section class="page" id="page-transactions" aria-label="Transactions">
+        <div class="toolbar">
+          <input type="search" id="transaction-search" placeholder="Search ID, product or payment" aria-label="Search transactions">
+          <div class="toolbar-actions">
+            <select id="transaction-month" aria-label="Filter by month" style="width:auto;min-width:155px"><option value="all">All months</option></select>
+            <button class="button" type="button" id="export-button"><span aria-hidden="true">↓</span> Export Excel</button>
+          </div>
+        </div>
+        <div class="transaction-summary">
+          <span>Sales <strong id="all-sales">Rs 0</strong></span>
+          <span>Profit <strong id="all-profit">Rs 0</strong></span>
+          <span>Loss <strong id="all-loss">Rs 0</strong></span>
+          <span><strong id="all-count">0</strong> sales</span>
+        </div>
+        <section class="panel">
+          <div class="panel-head"><div><div class="panel-title">Sales ledger</div><div class="panel-caption">Payment method, sale value and profit or loss</div></div></div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Transaction ID</th><th>Date</th><th>Product ID</th><th>Product</th><th>Qty</th><th>Unit price</th><th>Payment</th><th>Total</th><th>Cost</th><th>Profit / loss</th></tr></thead>
+            <tbody id="transactions-body"></tbody>
+          </table></div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="product-modal" role="dialog" aria-modal="true" aria-labelledby="product-modal-title">
+    <form class="modal" id="product-form">
+      <div class="modal-head"><h2 id="product-modal-title">Add product to inventory</h2><button class="icon-button" type="button" data-close="product-modal" aria-label="Close">×</button></div>
+      <div class="modal-body">
+        <div class="field"><label for="product-name">Product name</label><input id="product-name" required maxlength="80" placeholder="e.g. Premium Lager"></div>
+        <div class="form-grid">
+          <div class="field"><label for="product-quantity" id="product-quantity-label">Opening quantity</label><input id="product-quantity" type="number" required min="1" step="1" placeholder="0"></div>
+          <div class="field"><label for="product-cost" id="product-cost-label">Purchase cost per unit (Rs)</label><input id="product-cost" type="number" required min="0" step="0.01" placeholder="0.00"></div>
+          <div class="field wide"><label for="product-price" id="product-price-label">Selling price per unit (Rs)</label><input id="product-price" type="number" required min="0" step="0.01" placeholder="0.00"></div>
+        </div>
+        <div class="modal-actions"><button class="button" type="button" data-close="product-modal">Cancel</button><button class="button primary" type="submit" id="product-submit">Save product</button></div>
+      </div>
+    </form>
+  </div>
+
+  <div class="modal-backdrop" id="sale-modal" role="dialog" aria-modal="true" aria-labelledby="sale-modal-title">
+    <form class="modal" id="sale-form">
+      <div class="modal-head"><h2 id="sale-modal-title">Record a sale</h2><button class="icon-button" type="button" data-close="sale-modal" aria-label="Close">×</button></div>
+      <div class="modal-body">
+        <div class="field"><label for="sale-product">Product</label><select id="sale-product" required></select></div>
+        <div class="form-grid">
+          <div class="field"><label for="sale-quantity">Quantity</label><input id="sale-quantity" type="number" required min="1" step="1" value="1"></div>
+          <div class="field"><label for="sale-price">Selling price per unit (Rs)</label><input id="sale-price" type="number" required min="0" step="0.01"></div>
+          <div class="field"><label for="sale-payment">Payment method</label><select id="sale-payment" required><option value="Cash">Cash</option><option value="Fonepay">Fonepay</option></select></div>
+          <div class="field"><label for="sale-date">Sale date</label><input id="sale-date" type="date" required></div>
+        </div>
+        <div class="sale-preview" id="sale-preview">Select a product to preview this sale.</div>
+        <div class="modal-actions"><button class="button" type="button" data-close="sale-modal">Cancel</button><button class="button primary" type="submit">Save sale</button></div>
+      </div>
+    </form>
+  </div>
+
+  <div class="modal-backdrop" id="qr-modal" role="dialog" aria-modal="true" aria-labelledby="qr-modal-title">
+    <div class="modal">
+      <div class="modal-head"><h2 id="qr-modal-title">Pay with Fonepay</h2><button class="icon-button" type="button" data-close="qr-modal" aria-label="Close">×</button></div>
+      <div class="modal-body">
+        <div class="qr-area"><img src="qr.jpg" alt="Kazi Cold Store payment QR" id="store-qr" hidden><div class="qr-placeholder" id="qr-placeholder">Add your store's <strong>qr.png</strong> to this folder<br>to display the Fonepay payment code.</div></div>
+        <div class="modal-actions"><button class="button" type="button" data-close="qr-modal">Close</button></div>
+      </div>
+    </div>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (function () {
+      "use strict";
+      var STORAGE_KEY = "kazi-cold-store-ledger-v1";
+      var state = { products: [], transactions: [], monthlyGoal: 0 };
+      var notice = document.getElementById("notice");
+      var toastTimer;
+      var restockProductId = null;
+
+      function todayString() {
+        var date = new Date();
+        return date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0") + "-" + String(date.getDate()).padStart(2, "0");
+      }
+      function monthKey(value) { return String(value || "").slice(0, 7); }
+      function money(value) {
+        var amount = Number(value) || 0;
+        return "Rs " + amount.toLocaleString("en-NP", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
+      function number(value) { return (Number(value) || 0).toLocaleString("en-NP"); }
+      function escapeHtml(value) {
+        return String(value == null ? "" : value).replace(/[&<>"']/g, function (char) {
+          return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char];
+        });
+      }
+      function makeId(prefix) {
+        var id;
+        do {
+          id = prefix + "-" + Date.now().toString(36).toUpperCase() + "-" + Math.random().toString(36).slice(2, 7).toUpperCase();
+        } while (state.products.some(function (product) { return product.id === id; }) || state.transactions.some(function (transaction) { return transaction.id === id; }));
+        return id;
+      }
+      function loadState() {
+        try {
+          var saved = localStorage.getItem(STORAGE_KEY);
+          if (!saved) return;
+          var parsed = JSON.parse(saved);
+          if (!parsed || !Array.isArray(parsed.products) || !Array.isArray(parsed.transactions)) throw new Error("The saved data has an unexpected format.");
+          state.products = parsed.products;
+          state.transactions = parsed.transactions;
+          state.monthlyGoal = Math.max(0, Number(parsed.monthlyGoal) || 0);
+        } catch (error) {
+          notice.textContent = "Could not read the saved ledger. " + error.message + " Your existing browser data has not been overwritten.";
+          notice.classList.add("show");
+          state.readError = true;
+        }
+      }
+      function saveState() {
+        if (state.readError) {
+          notice.textContent = "The saved ledger could not be read, so saving is disabled to protect your existing data. Refresh or export the original browser data before trying again.";
+          notice.classList.add("show");
+          return false;
+        }
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            products: state.products,
+            transactions: state.transactions,
+            monthlyGoal: state.monthlyGoal
+          }));
+          state.readError = false;
+          notice.classList.remove("show");
+          return true;
+        } catch (error) {
+          notice.textContent = "The ledger could not be saved in this browser. Export a backup before closing this page. " + error.message;
+          notice.classList.add("show");
+          return false;
+        }
+      }
+      function toast(message) {
+        var el = document.getElementById("toast");
+        el.textContent = message;
+        el.classList.add("show");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () { el.classList.remove("show"); }, 2600);
+      }
+      function setModal(id, open) {
+        var el = document.getElementById(id);
+        if (el) el.classList.toggle("open", open);
+      }
+      function allMonthTransactions(key) {
+        return state.transactions.filter(function (transaction) { return monthKey(transaction.date) === key; });
+      }
+      function productById(id) {
+        return state.products.find(function (product) { return product.id === id; });
+      }
+      function transactionResult(transaction) {
+        var revenue = Number(transaction.quantity) * Number(transaction.unitPrice);
+        var cost = Number(transaction.quantity) * Number(transaction.unitCost);
+        return { revenue: revenue, cost: cost, result: revenue - cost };
+      }
+      function paymentBadge(payment) {
+        var type = payment === "Fonepay" ? "fonepay" : "cash";
+        return '<span class="badge ' + type + '">' + escapeHtml(payment) + "</span>";
+      }
+      function signedResult(value) {
+        return '<span class="' + (value < 0 ? "loss" : "profit") + '">' + (value < 0 ? "−" : "") + money(Math.abs(value)) + "</span>";
+      }
+      function renderDashboard() {
+        var currentMonth = monthKey(todayString());
+        var monthTransactions = allMonthTransactions(currentMonth);
+        var monthSales = 0, monthProfit = 0, monthGrossProfit = 0, monthLoss = 0, monthCash = 0, monthFonepay = 0, monthUnits = 0;
+        monthTransactions.forEach(function (transaction) {
+          var result = transactionResult(transaction);
+          monthSales += result.revenue;
+          monthProfit += result.result;
+          if (result.result >= 0) monthGrossProfit += result.result;
+          else monthLoss += Math.abs(result.result);
+          monthUnits += Number(transaction.quantity);
+          if (transaction.payment === "Fonepay") monthFonepay += result.revenue;
+          else monthCash += result.revenue;
+        });
+        var stockWorth = state.products.reduce(function (sum, product) { return sum + Number(product.quantity) * Number(product.unitCost); }, 0);
+        var stockCount = state.products.reduce(function (sum, product) { return sum + Number(product.quantity); }, 0);
+        document.getElementById("metric-inventory").textContent = money(stockWorth);
+        document.getElementById("metric-sales").textContent = money(monthSales);
+        document.getElementById("metric-profit").textContent = money(monthProfit);
+        document.getElementById("metric-stock").textContent = number(stockCount);
+        document.getElementById("metric-sales-foot").textContent = number(monthTransactions.length) + " transactions this month";
+        var profitFoot = document.getElementById("metric-profit-foot");
+        profitFoot.textContent = monthProfit < 0 ? "Sales are below cost this month" : "Profit after cost of goods sold";
+        profitFoot.className = "metric-foot " + (monthProfit < 0 ? "negative" : "positive");
+        document.getElementById("metric-products-foot").textContent = "Across " + number(state.products.length) + " products";
+        document.getElementById("goal-month-label").textContent = new Date().toLocaleDateString("en", { month: "long", year: "numeric" });
+        document.getElementById("goal-current").textContent = money(monthSales);
+        document.getElementById("goal-target").textContent = "of " + money(state.monthlyGoal);
+        var pct = state.monthlyGoal > 0 ? Math.min(100, Math.round(monthSales / state.monthlyGoal * 100)) : 0;
+        document.getElementById("goal-progress").style.width = pct + "%";
+        var progress = document.querySelector(".progress");
+        progress.setAttribute("aria-valuenow", String(pct));
+        document.getElementById("goal-percent").textContent = state.monthlyGoal > 0 ? pct + "% of goal" : "No goal set";
+        document.getElementById("goal-remaining").textContent = state.monthlyGoal > 0 ? (monthSales >= state.monthlyGoal ? "Goal reached" : money(state.monthlyGoal - monthSales) + " to go") : "Set a monthly target";
+        document.getElementById("goal-input").value = state.monthlyGoal || "";
+        document.getElementById("month-units").textContent = number(monthUnits);
+        document.getElementById("month-cash").textContent = money(monthCash);
+        document.getElementById("month-fonepay").textContent = money(monthFonepay);
+        document.getElementById("month-gross-profit").textContent = money(monthGrossProfit);
+        document.getElementById("month-loss").textContent = money(monthLoss);
+        var recent = state.transactions.slice().sort(function (a, b) { return String(b.date).localeCompare(String(a.date)) || String(b.id).localeCompare(String(a.id)); }).slice(0, 3);
+        var recentBody = document.getElementById("recent-body");
+        recentBody.innerHTML = recent.length ? recent.map(function (transaction) {
+          var result = transactionResult(transaction);
+          return "<tr><td data-label=\"Date\">" + escapeHtml(transaction.date) + "</td><td data-label=\"Product\"><strong>" + escapeHtml(transaction.productName) + "</strong></td><td data-label=\"Payment\">" + paymentBadge(transaction.payment) + "</td><td data-label=\"Total\"><strong>" + money(result.revenue) + "</strong></td></tr>";
+        }).join("") : '<tr><td class="table-empty" colspan="4">No sales yet. Your sales will appear here.</td></tr>';
+        document.getElementById("metric-profit").className = "metric-value " + (monthProfit < 0 ? "loss" : "profit");
+      }
+      function renderInventory() {
+        var query = document.getElementById("inventory-search").value.trim().toLowerCase();
+        var products = state.products.filter(function (product) {
+          return (String(product.name).toLowerCase().indexOf(query) !== -1 || String(product.id).toLowerCase().indexOf(query) !== -1);
+        });
+        var units = state.products.reduce(function (sum, product) { return sum + Number(product.quantity); }, 0);
+        var worth = state.products.reduce(function (sum, product) { return sum + Number(product.quantity) * Number(product.unitCost); }, 0);
+        document.getElementById("inventory-total").textContent = money(worth);
+        document.getElementById("inventory-count").textContent = number(state.products.length);
+        document.getElementById("inventory-units").textContent = number(units);
+        document.getElementById("inventory-low").textContent = number(state.products.filter(function (product) { return Number(product.quantity) <= 5; }).length);
+        document.getElementById("inventory-body").innerHTML = products.length ? products.map(function (product) {
+          var qty = Number(product.quantity);
+          return '<tr><td data-label="Product ID"><strong>' + escapeHtml(product.id) + '</strong></td><td data-label="Product"><strong>' + escapeHtml(product.name) + '<small class="mobile-meta">Cost ' + money(product.unitCost) + ' · Sell ' + money(product.sellingPrice) + ' · Stock worth ' + money(qty * Number(product.unitCost)) + '</small></strong></td><td data-label="In stock" class="' + (qty <= 5 ? "stock-low" : "") + '">' + number(qty) + (qty <= 5 ? " · Low" : "") + '</td><td data-label="Cost / unit">' + money(product.unitCost) + '</td><td data-label="Sell / unit">' + money(product.sellingPrice) + '</td><td data-label="Stock worth">' + money(qty * Number(product.unitCost)) + '</td><td data-label="Actions"><button class="button small" type="button" data-restock="' + escapeHtml(product.id) + '">Restock</button> <button class="button small" type="button" data-sell="' + escapeHtml(product.id) + '"' + (qty < 1 ? " disabled" : "") + ">Sell</button></td></tr>";
+        }).join("") : '<tr><td class="table-empty" colspan="7">' + (query ? "No matching products." : "No products in inventory. Add your first product to get started.") + "</td></tr>";
+      }
+      function updateMonthFilter() {
+        var select = document.getElementById("transaction-month");
+        var selected = select.value || "all";
+        var months = Array.from(new Set(state.transactions.map(function (transaction) { return monthKey(transaction.date); }).filter(Boolean))).sort().reverse();
+        select.innerHTML = '<option value="all">All months</option>' + months.map(function (month) {
+          var label = new Date(month + "-02").toLocaleDateString("en", { month: "long", year: "numeric" });
+          return '<option value="' + escapeHtml(month) + '">' + escapeHtml(label) + "</option>";
+        }).join("");
+        if (months.indexOf(selected) !== -1) select.value = selected;
+      }
+      function renderTransactions() {
+        updateMonthFilter();
+        var query = document.getElementById("transaction-search").value.trim().toLowerCase();
+        var selectedMonth = document.getElementById("transaction-month").value;
+        var sorted = state.transactions.slice().sort(function (a, b) { return String(b.date).localeCompare(String(a.date)) || String(b.id).localeCompare(String(a.id)); });
+        var filtered = sorted.filter(function (transaction) {
+          var matchesMonth = selectedMonth === "all" || monthKey(transaction.date) === selectedMonth;
+          var matchesQuery = [transaction.id, transaction.productName, transaction.productId, transaction.payment].join(" ").toLowerCase().indexOf(query) !== -1;
+          return matchesMonth && matchesQuery;
+        });
+        var totalSales = 0, totalProfit = 0, totalLoss = 0;
+        state.transactions.forEach(function (transaction) {
+          var result = transactionResult(transaction);
+          totalSales += result.revenue;
+          if (result.result >= 0) totalProfit += result.result;
+          else totalLoss += Math.abs(result.result);
+        });
+        document.getElementById("all-sales").textContent = money(totalSales);
+        document.getElementById("all-profit").textContent = money(totalProfit);
+        document.getElementById("all-loss").textContent = money(totalLoss);
+        document.getElementById("all-count").textContent = number(state.transactions.length);
+        document.getElementById("transactions-body").innerHTML = filtered.length ? filtered.map(function (transaction) {
+          var result = transactionResult(transaction);
+          return '<tr><td data-label="Transaction ID"><strong>' + escapeHtml(transaction.id) + '</strong></td><td data-label="Date">' + escapeHtml(transaction.date) + '</td><td data-label="Product ID">' + escapeHtml(transaction.productId) + '</td><td data-label="Product"><strong>' + escapeHtml(transaction.productName) + '</strong></td><td data-label="Qty">' + number(transaction.quantity) + '</td><td data-label="Unit price">' + money(transaction.unitPrice) + '</td><td data-label="Payment">' + paymentBadge(transaction.payment) + '</td><td data-label="Total"><strong>' + money(result.revenue) + '</strong></td><td data-label="Cost">' + money(result.cost) + '</td><td data-label="Profit / loss">' + signedResult(result.result) + '</td></tr>';
+        }).join("") : '<tr><td class="table-empty" colspan="10">' + (state.transactions.length ? "No transactions match your search." : "No transactions yet. Sales will appear here.") + "</td></tr>";
+      }
+      function renderAll() { renderDashboard(); renderInventory(); renderTransactions(); }
+      function showPage(name) {
+        document.querySelectorAll(".page").forEach(function (page) { page.classList.toggle("active", page.id === "page-" + name); });
+        document.querySelectorAll(".nav button").forEach(function (button) { button.classList.toggle("active", button.dataset.page === name); });
+        document.getElementById("page-title").textContent = name.charAt(0).toUpperCase() + name.slice(1);
+      }
+      function openSale(productId) {
+        var select = document.getElementById("sale-product");
+        var available = state.products.filter(function (product) { return Number(product.quantity) > 0; });
+        select.innerHTML = available.length ? available.map(function (product) {
+          return '<option value="' + escapeHtml(product.id) + '">' + escapeHtml(product.name) + " · " + number(product.quantity) + " in stock</option>";
+        }).join("") : '<option value="">No stock available</option>';
+        if (productId && productById(productId)) select.value = productId;
+        document.getElementById("sale-date").value = todayString();
+        document.getElementById("sale-quantity").value = "1";
+        setModal("sale-modal", true);
+        updateSalePreview();
+        if (!available.length) toast("Add a product with stock before recording a sale.");
+      }
+      function updateSalePreview() {
+        var product = productById(document.getElementById("sale-product").value);
+        var preview = document.getElementById("sale-preview");
+        if (!product) {
+          document.getElementById("sale-price").value = "";
+          preview.textContent = "No products are in stock.";
+          return;
+        }
+        var priceField = document.getElementById("sale-price");
+        if (priceField.dataset.productId !== product.id) {
+          priceField.value = Number(product.sellingPrice).toFixed(2);
+          priceField.dataset.productId = product.id;
+        }
+        var quantity = Math.max(0, Number(document.getElementById("sale-quantity").value) || 0);
+        var price = Math.max(0, Number(priceField.value) || 0);
+        var total = quantity * price;
+        var result = quantity * (price - Number(product.unitCost));
+        preview.innerHTML = "Available: <strong>" + number(product.quantity) + "</strong> units · Sale total: <strong>" + money(total) + "</strong> · Estimated " + (result < 0 ? "loss" : "profit") + ': <strong class="' + (result < 0 ? "loss" : "profit") + '">' + money(Math.abs(result)) + "</strong>";
+        document.getElementById("sale-quantity").max = String(product.quantity);
+      }
+      function xmlEscape(value) {
+        return String(value == null ? "" : value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+      }
+      function xmlCell(value, type) {
+        var cellType = type || (typeof value === "number" ? "Number" : "String");
+        return '<Cell><Data ss:Type="' + cellType + '">' + xmlEscape(value) + "</Data></Cell>";
+      }
+      function xmlRow(values) {
+        return "<Row>" + values.map(function (value) {
+          if (value && typeof value === "object" && Object.prototype.hasOwnProperty.call(value, "value")) return xmlCell(value.value, value.type);
+          return xmlCell(value);
+        }).join("") + "</Row>";
+      }
+      function worksheet(name, rows) {
+        return '<Worksheet ss:Name="' + xmlEscape(name) + '"><Table>' + rows.map(xmlRow).join("") + "</Table></Worksheet>";
+      }
+      function exportWorkbook() {
+        var productRows = [["Product ID", "Product", "Quantity in stock", "Cost per unit (Rs)", "Selling price per unit (Rs)", "Stock worth (Rs)"]];
+        state.products.forEach(function (product) {
+          productRows.push([product.id, product.name, Number(product.quantity), Number(product.unitCost), Number(product.sellingPrice), Number(product.quantity) * Number(product.unitCost)]);
+        });
+        var transactionRows = [["Transaction ID", "Date", "Product ID", "Product", "Quantity", "Unit selling price (Rs)", "Unit cost (Rs)", "Payment method", "Sale total (Rs)", "Total cost (Rs)", "Profit / loss (Rs)"]];
+        state.transactions.slice().sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); }).forEach(function (transaction) {
+          var result = transactionResult(transaction);
+          transactionRows.push([transaction.id, transaction.date, transaction.productId, transaction.productName, Number(transaction.quantity), Number(transaction.unitPrice), Number(transaction.unitCost), transaction.payment, result.revenue, result.cost, result.result]);
+        });
+        var monthlySales = allMonthTransactions(monthKey(todayString())).reduce(function (sum, transaction) { return sum + transactionResult(transaction).revenue; }, 0);
+        var summaryRows = [["Kazi Cold Store ledger", ""], ["Exported", new Date().toLocaleString()], ["Products", state.products.length], ["Units in stock", state.products.reduce(function (sum, product) { return sum + Number(product.quantity); }, 0)], ["Inventory value (Rs)", state.products.reduce(function (sum, product) { return sum + Number(product.quantity) * Number(product.unitCost); }, 0)], ["All-time sales (Rs)", state.transactions.reduce(function (sum, transaction) { return sum + transactionResult(transaction).revenue; }, 0)], ["All-time profit (Rs)", state.transactions.reduce(function (sum, transaction) { return sum + Math.max(0, transactionResult(transaction).result); }, 0)], ["All-time loss (Rs)", state.transactions.reduce(function (sum, transaction) { return sum + Math.max(0, -transactionResult(transaction).result); }, 0)], ["This month sales (Rs)", monthlySales], ["Monthly sales goal (Rs)", state.monthlyGoal]];
+        var workbook = '<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?>' +
+          '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" xmlns:html="http://www.w3.org/TR/REC-html40">' +
+          worksheet("Summary", summaryRows) + worksheet("Inventory", productRows) + worksheet("Transactions", transactionRows) + "</Workbook>";
+        var blob = new Blob(["\ufeff", workbook], { type: "application/vnd.ms-excel;charset=utf-8" });
+        var url = URL.createObjectURL(blob);
+        var link = document.createElement("a");
+        link.href = url;
+        link.download = "kazi-cold-store-ledger-" + todayString() + ".xls";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+        toast("Excel ledger exported.");
+      }
+
+      document.getElementById("store-logo").addEventListener("error", function () { this.hidden = true; });
+      document.getElementById("mobile-store-logo").addEventListener("error", function () { this.hidden = true; });
+      document.getElementById("store-qr").addEventListener("load", function () {
+        this.hidden = false;
+        document.getElementById("qr-placeholder").hidden = true;
+      });
+      document.getElementById("store-qr").addEventListener("error", function () {
+        this.hidden = true;
+        document.getElementById("qr-placeholder").hidden = false;
+      });
+      document.getElementById("date-label").textContent = new Date().toLocaleDateString("en", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+      document.querySelectorAll(".nav button").forEach(function (button) {
+        button.addEventListener("click", function () { if (button.dataset.page) showPage(button.dataset.page); });
+      });
+      document.querySelectorAll("[data-go]").forEach(function (button) {
+        button.addEventListener("click", function () { showPage(button.dataset.go); });
+      });
+      document.querySelectorAll("[data-close]").forEach(function (button) {
+        button.addEventListener("click", function () { setModal(button.dataset.close, false); });
+      });
+      document.querySelectorAll(".modal-backdrop").forEach(function (backdrop) {
+        backdrop.addEventListener("click", function (event) { if (event.target === backdrop) backdrop.classList.remove("open"); });
+      });
+      document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") document.querySelectorAll(".modal-backdrop.open").forEach(function (modal) { modal.classList.remove("open"); });
+      });
+      document.getElementById("qr-open").addEventListener("click", function () { setModal("qr-modal", true); });
+      document.getElementById("inventory-export").addEventListener("click", exportWorkbook);
+      document.getElementById("export-button").addEventListener("click", exportWorkbook);
+      document.getElementById("new-sale").addEventListener("click", function () { openSale(); });
+      document.getElementById("add-stock").addEventListener("click", function () {
+        document.getElementById("product-form").reset();
+        restockProductId = null;
+        document.getElementById("product-modal-title").textContent = "Add product to inventory";
+        document.getElementById("product-quantity-label").textContent = "Opening quantity";
+        document.getElementById("product-cost-label").textContent = "Purchase cost per unit (Rs)";
+        document.getElementById("product-price-label").textContent = "Selling price per unit (Rs)";
+        document.getElementById("product-submit").textContent = "Save product";
+        document.getElementById("product-name").readOnly = false;
+        setModal("product-modal", true);
+        document.getElementById("product-name").focus();
+      });
+      document.getElementById("inventory-search").addEventListener("input", renderInventory);
+      document.getElementById("transaction-search").addEventListener("input", renderTransactions);
+      document.getElementById("transaction-month").addEventListener("change", renderTransactions);
+      document.getElementById("inventory-body").addEventListener("click", function (event) {
+        var button = event.target.closest("[data-sell]");
+        if (button) openSale(button.dataset.sell);
+        var restockButton = event.target.closest("[data-restock]");
+        if (restockButton) {
+          var product = productById(restockButton.dataset.restock);
+          if (!product) return;
+          restockProductId = product.id;
+          document.getElementById("product-form").reset();
+          document.getElementById("product-modal-title").textContent = "Restock " + product.name;
+          document.getElementById("product-name").value = product.name;
+          document.getElementById("product-name").readOnly = true;
+          document.getElementById("product-quantity-label").textContent = "Quantity to add";
+          document.getElementById("product-cost-label").textContent = "New stock cost per unit (Rs)";
+          document.getElementById("product-price-label").textContent = "Selling price per unit (Rs)";
+          document.getElementById("product-cost").value = Number(product.unitCost).toFixed(2);
+          document.getElementById("product-price").value = Number(product.sellingPrice).toFixed(2);
+          document.getElementById("product-submit").textContent = "Add stock";
+          setModal("product-modal", true);
+          document.getElementById("product-quantity").focus();
+        }
+      });
+      document.getElementById("sale-product").addEventListener("change", updateSalePreview);
+      document.getElementById("sale-quantity").addEventListener("input", updateSalePreview);
+      document.getElementById("sale-price").addEventListener("input", updateSalePreview);
+      document.getElementById("goal-edit-toggle").addEventListener("click", function () {
+        var form = document.getElementById("goal-form");
+        form.hidden = !form.hidden;
+        if (!form.hidden) document.getElementById("goal-input").focus();
+      });
+      document.getElementById("goal-cancel").addEventListener("click", function () { document.getElementById("goal-form").hidden = true; });
+      document.getElementById("goal-form").addEventListener("submit", function (event) {
+        event.preventDefault();
+        var value = Number(document.getElementById("goal-input").value);
+        if (!Number.isFinite(value) || value < 0) { toast("Enter a valid monthly goal."); return; }
+        var previousGoal = state.monthlyGoal;
+        state.monthlyGoal = value;
+        if (saveState()) {
+          document.getElementById("goal-form").hidden = true;
+          renderAll();
+          toast("Monthly sales goal saved.");
+        } else state.monthlyGoal = previousGoal;
+      });
+      document.getElementById("product-form").addEventListener("submit", function (event) {
+        event.preventDefault();
+        var name = document.getElementById("product-name").value.trim();
+        var quantity = Number(document.getElementById("product-quantity").value);
+        var unitCost = Number(document.getElementById("product-cost").value);
+        var sellingPrice = Number(document.getElementById("product-price").value);
+        if (!name || !Number.isInteger(quantity) || quantity < 1 || !Number.isFinite(unitCost) || unitCost < 0 || !Number.isFinite(sellingPrice) || sellingPrice < 0) {
+          toast("Check the product name, quantity and prices.");
+          return;
+        }
+        var product = restockProductId ? productById(restockProductId) : null;
+        var duplicate = state.products.some(function (existing) { return existing.id !== restockProductId && String(existing.name).trim().toLowerCase() === name.toLowerCase(); });
+        if (duplicate) { toast("A product with that name already exists. Use Restock to add to its inventory."); return; }
+        var previousProduct = product ? {
+          quantity: Number(product.quantity), unitCost: Number(product.unitCost), sellingPrice: Number(product.sellingPrice)
+        } : null;
+        if (product) {
+          var oldQuantity = Number(product.quantity);
+          product.quantity = oldQuantity + quantity;
+          product.unitCost = (oldQuantity * Number(product.unitCost) + quantity * unitCost) / product.quantity;
+          product.sellingPrice = sellingPrice;
+        } else {
+          state.products.push({ id: makeId("KCS"), name: name, quantity: quantity, unitCost: unitCost, sellingPrice: sellingPrice, createdAt: todayString() });
+        }
+        if (saveState()) {
+          setModal("product-modal", false);
+          restockProductId = null;
+          renderAll();
+          toast(product ? "Stock added and average cost updated." : "Product added to inventory.");
+        } else if (product && previousProduct) {
+          product.quantity = previousProduct.quantity;
+          product.unitCost = previousProduct.unitCost;
+          product.sellingPrice = previousProduct.sellingPrice;
+        } else state.products.pop();
+      });
+      document.getElementById("sale-form").addEventListener("submit", function (event) {
+        event.preventDefault();
+        var product = productById(document.getElementById("sale-product").value);
+        var quantity = Number(document.getElementById("sale-quantity").value);
+        var unitPrice = Number(document.getElementById("sale-price").value);
+        var payment = document.getElementById("sale-payment").value;
+        var date = document.getElementById("sale-date").value;
+        if (!product || !Number.isInteger(quantity) || quantity < 1 || quantity > Number(product.quantity) || !Number.isFinite(unitPrice) || unitPrice < 0 || !date || ["Cash", "Fonepay"].indexOf(payment) === -1) {
+          toast("Check the product, quantity, price, payment method and date.");
+          return;
+        }
+        var previousQuantity = product.quantity;
+        product.quantity = Number(product.quantity) - quantity;
+        state.transactions.push({
+          id: makeId("SALE"), date: date, productId: product.id, productName: product.name,
+          quantity: quantity, unitPrice: unitPrice, unitCost: Number(product.unitCost), payment: payment
+        });
+        if (saveState()) {
+          setModal("sale-modal", false);
+          renderAll();
+          toast("Sale saved and inventory updated.");
+        } else {
+          product.quantity = previousQuantity;
+          state.transactions.pop();
+        }
+      });
+
+      loadState();
+      renderAll();
+    }());
+  </script>
+</body>
+</html>
